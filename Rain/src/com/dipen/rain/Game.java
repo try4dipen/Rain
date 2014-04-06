@@ -11,6 +11,7 @@ import java.awt.image.DataBufferInt;
 import javax.swing.JFrame;
 
 import com.dipen.rain.graphics.Screen;
+import com.dipen.rain.input.Keyboard;
 
 public class Game extends Canvas implements Runnable{
 
@@ -22,26 +23,30 @@ public class Game extends Canvas implements Runnable{
 	 * Author : Dipen Routaray
 	 * Version : 1
 	 */
-	public static int width = 300;
-	public static int height = width * 16 /9;
+	public static int height = 300;
+	public static int width = height * 16 /9;
 	public static int scale = 1;
+	int x=0,y=0;
 	
 	private Thread thread;
 	private JFrame frame;
 	private boolean running = false;
 	
 	private Screen screen;
-	
+	private Keyboard key;
 	private BufferedImage image = new BufferedImage(width,height,BufferedImage.TYPE_INT_RGB);
 	private int[] pixels = ((DataBufferInt)image.getRaster().getDataBuffer()).getData();
 	/*
 	 * Constructor
 	 */
 	public Game(){
-		Dimension size = new Dimension(height*scale,width*scale);
+		Dimension size = new Dimension(width*scale,height*scale);
 		setPreferredSize(size);
-		screen = new Screen(width, height);
+		screen = new Screen(width,height);
 		frame = new JFrame();
+		key = new Keyboard();
+		
+		addKeyListener(key);
 	}
 	
 	public synchronized void start(){
@@ -58,14 +63,41 @@ public class Game extends Canvas implements Runnable{
 		}
 	}
 	public void run(){
+		long lasttime = System.nanoTime();
+		long timer = System.currentTimeMillis();
+		final double ns = 1000000000.0 / 60.0;
+		double delta = 0;
+		int frames = 0;
+		int updates = 0;
+		
 		while(running){
-			update();
+			long now = System.nanoTime();
+			delta += (now - lasttime)/ns;
+			//System.out.println("delta = "+delta);
+			lasttime = now;
+			while(delta>=1){
+				update();
+				updates++;
+				delta--;
+			}
 			render();
+			frames++;
+			
+			if(System.currentTimeMillis() - timer > 1000){
+				timer+=1000;
+				frame.setTitle(updates + " ups, " + frames + "frames");
+				updates = 0;
+				frames = 0;
+			}
 		}
 	}
 
 	private void update() {
-		
+		key.update();
+		if(key.up)y--;
+		if(key.down)y++;
+		if(key.left)x--;
+		if(key.right)x++;
 	}
 	
 	private void render() {
@@ -75,7 +107,7 @@ public class Game extends Canvas implements Runnable{
 			return;
 		}
 		screen.clear();
-		screen.render();
+		screen.render(x,y);
 		for(int i=0;i<pixels.length;i++){
 			pixels[i]=screen.pixels[i];
 		}
